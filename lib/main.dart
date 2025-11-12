@@ -274,6 +274,21 @@ class _HomePageState extends State<HomePage> {
     _loadFavorites();
     _loadDataAndFetchIfNeeded();
     // Ads removed: interstitial load/show calls removed.
+    // Listen for SyncService updates so SDG manual edits on GitHub apply immediately
+    SyncService().addListener(_onSyncUpdate);
+  }
+
+  void _onSyncUpdate() {
+    final calc = SyncService().getCalculatorData();
+    if (calc != null && calc['rates'] is Map) {
+      final ratesMap = Map<String, dynamic>.from(calc['rates']);
+      final baseRate = ratesMap[baseCurrency] ?? 1.0;
+      setState(() {
+        originalRates = ratesMap;
+        rates = originalRates.map((key, value) => MapEntry(key, value / baseRate));
+        isLoading = false;
+      });
+    }
   }
 
   void _loadFavorites() async {
@@ -287,6 +302,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    SyncService().removeListener(_onSyncUpdate);
     amountController.dispose();
     searchController.dispose();
     // Ads removed
