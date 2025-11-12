@@ -1,0 +1,10 @@
+﻿# Local installers / big files
+Git-*.exe
+
+# Build artifacts
+build/
+.dart_tool/
+**/build/
+.idea/
+.vscode/
+pubspec.lock
