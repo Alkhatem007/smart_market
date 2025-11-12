@@ -10,6 +10,8 @@ import 'dart:convert';
 import 'crypto_chart_page.dart';
 import 'package:share_plus/share_plus.dart';
 import 'config.dart';
+import 'services/sync_service.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:smart_market/gold_screen.dart';
 // Firestore removed
@@ -65,6 +67,13 @@ void main() async {
   );
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  // Initialize background SyncService which polls GitHub-hosted JSON endpoints.
+  try {
+    await SyncService().init();
+  } catch (e) {
+    // Continue even if sync init fails; app will still function using local fetch.
+    debugPrint('SyncService.init() failed: $e');
+  }
 
   runApp(const CurrencyApp());
 }
