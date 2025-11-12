@@ -11,7 +11,6 @@ import 'crypto_chart_page.dart';
 import 'package:share_plus/share_plus.dart';
 import 'config.dart';
 import 'services/sync_service.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:smart_market/gold_screen.dart';
 // Firestore removed
@@ -122,6 +121,7 @@ class _CurrencyAppState extends State<CurrencyApp> {
     );
   }
 }
+
 
 class MainScreen extends StatefulWidget {
   final VoidCallback toggleTheme;
