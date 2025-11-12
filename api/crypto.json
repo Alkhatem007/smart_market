@@ -1,0 +1,8 @@
+{
+  "updated_at": "2025-11-12T00:00:00Z",
+  "cryptos": [
+    { "id": "bitcoin", "symbol": "BTC", "price_usd": 61000.0 },
+    { "id": "ethereum", "symbol": "ETH", "price_usd": 4200.0 },
+    { "id": "litecoin", "symbol": "LTC", "price_usd": 180.0 }
+  ]
+}
