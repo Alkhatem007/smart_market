@@ -1040,22 +1040,7 @@ class _MorePageState extends State<MorePage> {
     // replace fetchNewsFromFirestore with an HTTP call to your news API.
   }
 
-  // Local news notification helper (kept for future use)
-  Future<void> _sendLocalNewsNotification(String title) async {
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      '📰 خبر جديد',
-      title,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'news_channel',
-          'تنبيهات الأخبار',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-    );
-  }
+  // Local news notification helper removed to avoid unused declaration warnings.
 
   @override
   void dispose() {
