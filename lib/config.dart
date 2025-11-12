@@ -28,3 +28,8 @@ const int sdgPollIntervalSeconds = 30;
 // When SDG is manually changed via the GitHub JSON, keep that value locked
 // locally for this many days before allowing automatic sources to overwrite it.
 const int sdgLockDays = 3;
+
+// News JSON endpoint hosted in this repository's `api/` folder. App polls this
+// every 12 hours to refresh the 3 headline items shown on the MorePage.
+const String newsJsonUrl =
+    'https://raw.githubusercontent.com/alkhatem007/smart_market/main/api/news.json';

@@ -1047,7 +1047,9 @@ class _MorePageState extends State<MorePage> {
   @override
   void initState() {
     super.initState();
-    fetchNewsFromFirestore();
+    // Initialize news from SyncService cache
+  // fetchNewsFromFirestore replaced with cached news logic below
+    _loadNewsFromSync();
     startBackgroundRefresh();
     // Ads removed
 
@@ -1056,11 +1058,44 @@ class _MorePageState extends State<MorePage> {
     // replace fetchNewsFromFirestore with an HTTP call to your news API.
   }
 
+  void _loadNewsFromSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final raw = prefs.getString('sync_news');
+      if (raw != null) {
+        final data = json.decode(raw) as Map<String, dynamic>;
+        final articles = data['articles'] as List<dynamic>?;
+        if (articles != null) {
+          setState(() {
+            newsList = articles.take(3).map((a) => Map<String, String>.from(a as Map)).toList();
+          });
+        }
+      }
+    } catch (_) {}
+    // Listen for future updates
+    SyncService().addListener(_onNewsUpdate);
+  }
+
+  void _onNewsUpdate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('sync_news');
+    if (raw != null) {
+      final data = json.decode(raw) as Map<String, dynamic>;
+      final articles = data['articles'] as List<dynamic>?;
+      if (articles != null) {
+        setState(() {
+          newsList = articles.take(3).map((a) => Map<String, String>.from(a as Map)).toList();
+        });
+      }
+    }
+  }
+
   // Local news notification helper removed to avoid unused declaration warnings.
 
   @override
   void dispose() {
     backgroundTimer?.cancel();
+    SyncService().removeListener(_onNewsUpdate);
     super.dispose();
   }
 

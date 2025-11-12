@@ -1,0 +1,23 @@
+{
+  "updated_at": "2025-11-12T00:00:00Z",
+  "articles": [
+    {
+      "source": "BBC",
+      "title": "Global currencies react to rising commodity prices",
+      "url": "https://www.bbc.com/news/business-1",
+      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/12345.jpg"
+    },
+    {
+      "source": "BBC",
+      "title": "Cryptocurrency markets surge as investors rotate",
+      "url": "https://www.bbc.com/news/technology-1",
+      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/23456.jpg"
+    },
+    {
+      "source": "BBC",
+      "title": "Gold prices steady amid market uncertainty",
+      "url": "https://www.bbc.com/news/business-2",
+      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/34567.jpg"
+    }
+  ]
+}

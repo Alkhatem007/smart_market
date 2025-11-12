@@ -16,6 +16,7 @@ class SyncService extends ChangeNotifier {
   late RemoteFetcher<Map<String, dynamic>> goldFetcher;
   late RemoteFetcher<Map<String, dynamic>> cryptoFetcher;
   late RemoteFetcher<Map<String, dynamic>> sdgFetcher;
+  late RemoteFetcher<Map<String, dynamic>> newsFetcher;
 
   Map<String, dynamic>? homeData;
   Map<String, dynamic>? calculatorData;
@@ -50,6 +51,12 @@ class SyncService extends ChangeNotifier {
       parser: (json) => Map<String, dynamic>.from(json),
     );
 
+    newsFetcher = RemoteFetcher<Map<String, dynamic>>(
+      url: newsJsonUrl,
+      interval: const Duration(hours: 12),
+      parser: (json) => Map<String, dynamic>.from(json),
+    );
+
     cryptoFetcher = RemoteFetcher<Map<String, dynamic>>(
       url: cryptoJsonUrl,
       interval: const Duration(seconds: 10),
@@ -72,6 +79,7 @@ class SyncService extends ChangeNotifier {
     goldFetcher.start();
     cryptoFetcher.start();
   sdgFetcher.start();
+  newsFetcher.start();
 
     Timer.periodic(const Duration(seconds: 5), (_) => _collect());
   }
@@ -164,6 +172,17 @@ class SyncService extends ChangeNotifier {
       } catch (_) {}
     }
 
+    // News handling: refresh the cached 3 news items
+    if (newsFetcher.last != null) {
+      final fetchedNews = newsFetcher.last!;
+      try {
+        if (!mapEquals(fetchedNews, prefs.getString('sync_news') != null ? json.decode(prefs.getString('sync_news')!) : null)) {
+          await prefs.setString('sync_news', json.encode(fetchedNews));
+          changed = true;
+        }
+      } catch (_) {}
+    }
+
     if (changed) notifyListeners();
   }
 
@@ -178,5 +197,6 @@ class SyncService extends ChangeNotifier {
     goldFetcher.stop();
     cryptoFetcher.stop();
     sdgFetcher.stop();
+    newsFetcher.stop();
   }
 }
