@@ -15,6 +15,7 @@ class SyncService extends ChangeNotifier {
   late RemoteFetcher<Map<String, dynamic>> calculatorFetcher;
   late RemoteFetcher<Map<String, dynamic>> goldFetcher;
   late RemoteFetcher<Map<String, dynamic>> cryptoFetcher;
+  late RemoteFetcher<Map<String, dynamic>> sdgFetcher;
 
   Map<String, dynamic>? homeData;
   Map<String, dynamic>? calculatorData;
@@ -40,6 +41,15 @@ class SyncService extends ChangeNotifier {
       parser: (json) => Map<String, dynamic>.from(json),
     );
 
+    // A short-poll fetcher that reads the central currency JSON (where you
+    // manually edit SDG). When SDG changes in that JSON we lock it for
+    // `sdgLockDays` so other automated sources won't override it.
+    sdgFetcher = RemoteFetcher<Map<String, dynamic>>(
+      url: currencyJsonUrl,
+      interval: Duration(seconds: sdgPollIntervalSeconds),
+      parser: (json) => Map<String, dynamic>.from(json),
+    );
+
     cryptoFetcher = RemoteFetcher<Map<String, dynamic>>(
       url: cryptoJsonUrl,
       interval: const Duration(seconds: 10),
@@ -61,6 +71,7 @@ class SyncService extends ChangeNotifier {
     calculatorFetcher.start();
     goldFetcher.start();
     cryptoFetcher.start();
+  sdgFetcher.start();
 
     Timer.periodic(const Duration(seconds: 5), (_) => _collect());
   }
@@ -69,8 +80,31 @@ class SyncService extends ChangeNotifier {
     bool changed = false;
     final prefs = await SharedPreferences.getInstance();
 
+    // Helper to apply SDG lock override to any fetched map that contains a
+    // top-level 'rates' map.
+    Map<String, dynamic> applySdgLock(Map<String, dynamic> fetched, SharedPreferences p) {
+      try {
+        final lockedUntil = p.getInt('sdg_locked_until') ?? 0;
+        final now = DateTime.now().millisecondsSinceEpoch;
+        if (lockedUntil > now && p.containsKey('sdg_manual_value')) {
+          final manual = p.getDouble('sdg_manual_value');
+          if (manual != null) {
+            if (fetched.containsKey('rates') && fetched['rates'] is Map) {
+              final rates = Map<String, dynamic>.from(fetched['rates']);
+              rates['SDG'] = manual;
+              final copy = Map<String, dynamic>.from(fetched);
+              copy['rates'] = rates;
+              return copy;
+            }
+          }
+        }
+      } catch (_) {}
+      return fetched;
+    }
+
     if (homeFetcher.last != null) {
-      final value = homeFetcher.last!;
+      var value = homeFetcher.last!;
+      value = applySdgLock(value, prefs);
       if (!mapEquals(value, homeData)) {
         homeData = value;
         await prefs.setString('sync_home', json.encode(value));
@@ -79,7 +113,8 @@ class SyncService extends ChangeNotifier {
     }
 
     if (calculatorFetcher.last != null) {
-      final value = calculatorFetcher.last!;
+      var value = calculatorFetcher.last!;
+      value = applySdgLock(value, prefs);
       if (!mapEquals(value, calculatorData)) {
         calculatorData = value;
         await prefs.setString('sync_calculator', json.encode(value));
@@ -88,7 +123,8 @@ class SyncService extends ChangeNotifier {
     }
 
     if (goldFetcher.last != null) {
-      final value = goldFetcher.last!;
+      var value = goldFetcher.last!;
+      value = applySdgLock(value, prefs);
       if (!mapEquals(value, goldData)) {
         goldData = value;
         await prefs.setString('sync_gold', json.encode(value));
@@ -105,6 +141,29 @@ class SyncService extends ChangeNotifier {
       }
     }
 
+    // Handle the dedicated SDG poller (currency.json). If it contains a SDG
+    // rate and that rate differs from the stored manual value, we treat that
+    // as a manual update and lock SDG for `sdgLockDays`.
+    if (sdgFetcher.last != null) {
+      final fetched = sdgFetcher.last!;
+      try {
+        if (fetched.containsKey('rates') && fetched['rates'] is Map) {
+          final rates = fetched['rates'] as Map<String, dynamic>;
+          if (rates.containsKey('SDG')) {
+            final newSdg = (rates['SDG'] as num).toDouble();
+            final prevManual = prefs.getDouble('sdg_manual_value');
+            if (prevManual == null || prevManual != newSdg) {
+              // Manual change detected on GitHub -> lock for sdgLockDays
+              final until = DateTime.now().add(Duration(days: sdgLockDays)).millisecondsSinceEpoch;
+              await prefs.setInt('sdg_locked_until', until);
+              await prefs.setDouble('sdg_manual_value', newSdg);
+              changed = true;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     if (changed) notifyListeners();
   }
 
@@ -118,5 +177,6 @@ class SyncService extends ChangeNotifier {
     calculatorFetcher.stop();
     goldFetcher.stop();
     cryptoFetcher.stop();
+    sdgFetcher.stop();
   }
 }
