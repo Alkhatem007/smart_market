@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:csv/csv.dart';
 
 class GoldScreen extends StatefulWidget {
@@ -293,10 +294,17 @@ class _GoldScreenState extends State<GoldScreen> {
                         child: Column(
                           children: [
                             ListTile(
-                              leading: Image.asset(
-                                'assets/images/gold/gold_bar.png',
+                              leading: SizedBox(
                                 width: 60,
                                 height: 60,
+                                child: SvgPicture.asset(
+                                  'assets/images/gold/gold_bar.svg',
+                                  placeholderBuilder: (context) => Container(
+                                    width: 60,
+                                    height: 60,
+                                    color: Colors.amber.shade100,
+                                  ),
+                                ),
                               ),
                               title: Text(
                                 'عيار $karat',

@@ -10,11 +10,15 @@ import 'dart:convert';
 import 'crypto_chart_page.dart';
 import 'package:share_plus/share_plus.dart';
 import 'config.dart';
+import 'services/sync_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:smart_market/gold_screen.dart';
 // Firestore removed
 import 'package:shared_preferences/shared_preferences.dart';
+// rootBundle import removed; bundled asset loading handled in SyncService
  
+
+const String _defaultNewsImageUrl = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1024&q=80';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -65,6 +69,13 @@ void main() async {
   );
 
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  // Initialize background SyncService which polls GitHub-hosted JSON endpoints.
+  try {
+    await SyncService().init();
+  } catch (e) {
+    // Continue even if sync init fails; app will still function using local fetch.
+    debugPrint('SyncService.init() failed: $e');
+  }
 
   runApp(const CurrencyApp());
 }
@@ -113,6 +124,7 @@ class _CurrencyAppState extends State<CurrencyApp> {
     );
   }
 }
+
 
 class MainScreen extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -265,6 +277,21 @@ class _HomePageState extends State<HomePage> {
     _loadFavorites();
     _loadDataAndFetchIfNeeded();
     // Ads removed: interstitial load/show calls removed.
+    // Listen for SyncService updates so SDG manual edits on GitHub apply immediately
+    SyncService().addListener(_onSyncUpdate);
+  }
+
+  void _onSyncUpdate() {
+    final calc = SyncService().getCalculatorData();
+    if (calc != null && calc['rates'] is Map) {
+      final ratesMap = Map<String, dynamic>.from(calc['rates']);
+      final baseRate = ratesMap[baseCurrency] ?? 1.0;
+      setState(() {
+        originalRates = ratesMap;
+        rates = originalRates.map((key, value) => MapEntry(key, value / baseRate));
+        isLoading = false;
+      });
+    }
   }
 
   void _loadFavorites() async {
@@ -278,6 +305,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    SyncService().removeListener(_onSyncUpdate);
     amountController.dispose();
     searchController.dispose();
     // Ads removed
@@ -1022,8 +1050,9 @@ class _MorePageState extends State<MorePage> {
   @override
   void initState() {
     super.initState();
-    fetchNewsFromFirestore();
-    startBackgroundRefresh();
+    // Initialize news from SyncService cache
+  // fetchNewsFromFirestore replaced with cached news logic below
+  _loadNewsFromSync();
     // Ads removed
 
     // مراقبة الأخبار الجديدة في قاعدة البيانات
@@ -1031,26 +1060,58 @@ class _MorePageState extends State<MorePage> {
     // replace fetchNewsFromFirestore with an HTTP call to your news API.
   }
 
-  // Local news notification helper (kept for future use)
-  Future<void> _sendLocalNewsNotification(String title) async {
-    await flutterLocalNotificationsPlugin.show(
-      0,
-      '📰 خبر جديد',
-      title,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'news_channel',
-          'تنبيهات الأخبار',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-    );
+  void _loadNewsFromSync() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final raw = prefs.getString('sync_news');
+      if (raw != null) {
+        final data = json.decode(raw) as Map<String, dynamic>;
+        final articles = data['articles'] as List<dynamic>?;
+        if (articles != null) {
+          setState(() {
+            newsList = articles.take(3).map((a) {
+              final m = Map<String, String>.from(a as Map);
+              if (m['image'] == null || m['image']!.isEmpty) {
+                m['image'] = _defaultNewsImageUrl;
+              }
+              return m;
+            }).toList();
+          });
+        }
+      }
+    } catch (_) {}
+    // Listen for future updates
+    SyncService().addListener(_onNewsUpdate);
   }
+
+  // Bundled reload removed. The app uses SyncService to refresh news every 12 hours.
+
+  void _onNewsUpdate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('sync_news');
+    if (raw != null) {
+      final data = json.decode(raw) as Map<String, dynamic>;
+      final articles = data['articles'] as List<dynamic>?;
+      if (articles != null) {
+        setState(() {
+          newsList = articles.take(3).map((a) {
+            final m = Map<String, String>.from(a as Map);
+            if (m['image'] == null || m['image']!.isEmpty) {
+              m['image'] = _defaultNewsImageUrl;
+            }
+            return m;
+          }).toList();
+        });
+      }
+    }
+  }
+
+  // Local news notification helper removed to avoid unused declaration warnings.
 
   @override
   void dispose() {
     backgroundTimer?.cancel();
+    SyncService().removeListener(_onNewsUpdate);
     super.dispose();
   }
 
@@ -1082,7 +1143,7 @@ class _MorePageState extends State<MorePage> {
     }
   }
 
-  void _launchURL(String url) async {
+  Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1091,9 +1152,27 @@ class _MorePageState extends State<MorePage> {
     }
   }
 
-  void _showAdThenOpenLink(String url) {
-    // Ads removed: open link directly
-    _launchURL(url);
+  // Ads removed: links open directly via _openNews
+
+  Future<void> _openNews(Map<String, String> news) async {
+    final url = news['url'] ?? '';
+    if (url.isEmpty) return;
+    try {
+      final uri = Uri.parse(url);
+      final resp = await http.get(uri).timeout(const Duration(seconds: 5));
+      if (resp.statusCode >= 200 && resp.statusCode < 400) {
+        await _launchURL(url);
+        return;
+      }
+    } catch (_) {}
+    // If the article URL returned an error or timed out, show a message
+    // to the user instead of redirecting to a web search.
+    try {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(const SnackBar(
+        content: Text('عذراً، لا يمكن فتح الخبر الآن.'),
+      ));
+    } catch (_) {}
   }
 
   @override
@@ -1126,7 +1205,7 @@ class _MorePageState extends State<MorePage> {
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: GestureDetector(
                       onTap: () {
-                        _showAdThenOpenLink(news['url']!);
+                        _openNews(news);
                       },
                       child: Card(
                         shape: RoundedRectangleBorder(
