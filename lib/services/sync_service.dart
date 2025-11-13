@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import '../config.dart';
 import 'remote_fetcher.dart';
 
@@ -68,6 +69,18 @@ class SyncService extends ChangeNotifier {
     final c = prefs.getString('sync_calculator');
     final g = prefs.getString('sync_gold');
     final x = prefs.getString('sync_crypto');
+    // If news isn't present in SharedPreferences yet, attempt to load the
+    // bundled `api/news.json` asset so the app shows news out-of-the-box.
+    if (!prefs.containsKey('sync_news')) {
+      try {
+        final bundled = await rootBundle.loadString('api/news.json');
+        if (bundled.isNotEmpty) {
+          await prefs.setString('sync_news', bundled);
+        }
+      } catch (_) {
+        // asset may not be available in some test environments; ignore
+      }
+    }
 
     if (h != null) homeData = json.decode(h);
     if (c != null) calculatorData = json.decode(c);
