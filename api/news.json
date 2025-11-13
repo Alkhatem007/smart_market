@@ -3,21 +3,21 @@
   "articles": [
     {
       "source": "BBC",
-      "title": "Global currencies react to rising commodity prices",
+      "title": "تحديث: تحركات في أسواق الصرف بسبب ارتفاع أسعار السلع",
       "url": "https://www.bbc.com/news/business-1",
-      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/12345.jpg"
+      "image": "https://images.unsplash.com/photo-1559526324-593bc073d938?auto=format&fit=crop&w=1024&q=80"
     },
     {
       "source": "BBC",
-      "title": "Cryptocurrency markets surge as investors rotate",
+      "title": "ارتفاع في أسواق العملات الرقمية بعد دوران السيولة",
       "url": "https://www.bbc.com/news/technology-1",
-      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/23456.jpg"
+      "image": "https://images.unsplash.com/photo-1611078485460-0e7c7a4f0e3a?auto=format&fit=crop&w=1024&q=80"
     },
     {
       "source": "BBC",
-      "title": "Gold prices steady amid market uncertainty",
+      "title": "أسعار الذهب مستقرة وسط حالة من عدم اليقين في الأسواق",
       "url": "https://www.bbc.com/news/business-2",
-      "image": "https://ichef.bbci.co.uk/news/1024/branded_news/34567.jpg"
+      "image": "https://images.unsplash.com/photo-1483729558449-99ef09a8c325?auto=format&fit=crop&w=1024&q=80"
     }
   ]
 }
