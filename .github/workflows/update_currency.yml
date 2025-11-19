@@ -4,7 +4,7 @@ on:
   schedule:
     # Every 12 hours
     - cron: '0 */12 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   update-rates:
@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: '3.10'
 
-        - name: Fetch rates and update api/currency.json
+      - name: Fetch rates and update api/currency.json
         env:
           # Optional: set EXCHANGE_API_URL in repository Secrets to use a
           # trusted/paid provider endpoint. If not set, fallback to the
@@ -98,7 +98,6 @@ jobs:
           with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(new, f, ensure_ascii=False, indent=2)
           print('Wrote', out_path)
-
           # Commit only if changes
           import subprocess
           subprocess.run(['git', 'config', 'user.name', 'github-actions'], check=True)
