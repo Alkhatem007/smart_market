@@ -1,0 +1,114 @@
+name: Update Currency Rates
+
+on:
+  schedule:
+    # Every 12 hours
+    - cron: '0 */12 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  update-rates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+        - name: Fetch rates and update api/currency.json
+        env:
+          # Optional: set EXCHANGE_API_URL in repository Secrets to use a
+          # trusted/paid provider endpoint. If not set, fallback to the
+          # provided ExchangeRate-API URL (you can instead put this value
+          # into the repo Secrets as EXCHANGE_API_URL for safety).
+          EXCHANGE_API_URL: ${{ secrets.EXCHANGE_API_URL }}
+          # Optional: set EXCHANGE_API_KEY if your provider needs an API key
+          EXCHANGE_API_KEY: ${{ secrets.EXCHANGE_API_KEY }}
+          # Fallback URL (ExchangeRate-API v6) - replace or keep as needed.
+          FALLBACK_EXCHANGE_API_URL: 'https://v6.exchangerate-api.com/v6/e67d737a5780f88b48c17ee5/latest/USD'
+        run: |
+          python - <<'PY'
+          import json, urllib.request, os, sys
+
+          # Provider selection: if EXCHANGE_API_URL is provided use it,
+          # otherwise fall back to exchangerate.host which is free and reliable.
+          api_env = os.environ.get('EXCHANGE_API_URL')
+          api_key = os.environ.get('EXCHANGE_API_KEY')
+          if api_env:
+            api = api_env
+            # If the URL contains a placeholder {API_KEY} substitute it
+            if '{API_KEY}' in api and api_key:
+              api = api.replace('{API_KEY}', api_key)
+          else:
+            api = 'https://api.exchangerate.host/latest?base=USD'
+
+          out_path = 'api/currency.json'
+
+          def fetch_json(url):
+            with urllib.request.urlopen(url, timeout=20) as r:
+              return json.load(r)
+
+          print('Fetching rates from', api)
+          try:
+            data = fetch_json(api)
+          except Exception as e:
+            print('Error fetching rates:', e)
+            sys.exit(0)
+
+            # Normalise common response shapes: many providers use 'rates' or
+            # 'conversion_rates' (ExchangeRate-API uses conversion_rates).
+            rates = None
+            if isinstance(data, dict):
+              if 'rates' in data and isinstance(data['rates'], dict):
+                rates = data['rates']
+              elif 'conversion_rates' in data and isinstance(data['conversion_rates'], dict):
+                rates = data['conversion_rates']
+              else:
+                # Some providers return the rates directly at top-level
+                # as a dict of currency->value.
+                rates = data
+
+            if not isinstance(rates, dict):
+              print('Unexpected rates format; aborting update')
+              sys.exit(0)
+
+          if not isinstance(rates, dict):
+            print('Unexpected rates format; aborting update')
+            sys.exit(0)
+
+          # Convert numbers to native Python floats
+          rates = {k: float(v) for k, v in rates.items()}
+
+          # Preserve SDG if present in existing file (allow manual edits)
+          if os.path.exists(out_path):
+            try:
+              with open(out_path, 'r', encoding='utf-8') as f:
+                prev = json.load(f)
+                sdg = prev.get('rates', {}).get('SDG')
+                if sdg is not None:
+                  print('Preserving manual SDG value from repo:', sdg)
+                  rates['SDG'] = sdg
+            except Exception as e:
+              print('Warning: could not read existing currency file:', e)
+
+          new = {'rates': rates}
+          with open(out_path, 'w', encoding='utf-8') as f:
+            json.dump(new, f, ensure_ascii=False, indent=2)
+          print('Wrote', out_path)
+
+          # Commit only if changes
+          import subprocess
+          subprocess.run(['git', 'config', 'user.name', 'github-actions'], check=True)
+          subprocess.run(['git', 'config', 'user.email', 'actions@github.com'], check=True)
+          subprocess.run(['git', 'add', out_path], check=True)
+          diff = subprocess.run(['git', 'diff', '--staged', '--quiet'])
+          if diff.returncode == 0:
+            print('No changes to commit')
+          else:
+            msg = 'chore(rates): update currency rates (automated)'
+            subprocess.run(['git', 'commit', '-m', msg], check=True)
+            subprocess.run(['git', 'push'], check=True)
+          PY
