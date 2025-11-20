@@ -1,4 +1,4 @@
-name: Update Currency Rates
+ name: Update Currency Rates
 
 on:
   schedule:
@@ -99,7 +99,6 @@ jobs:
           with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(new, f, ensure_ascii=False, indent=2)
           print('Wrote', out_path)
-
           # Commit only if changes
           import subprocess
           subprocess.run(['git', 'config', 'user.name', 'github-actions'], check=True)
