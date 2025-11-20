@@ -1,4 +1,4 @@
- name: Update Currency Rates
+name: Update Currency Rates
 
 on:
   schedule:
