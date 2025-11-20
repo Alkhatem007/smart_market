@@ -1,4 +1,5 @@
 name: Update Currency Rates
+
 on:
   schedule:
     # Every 12 hours
@@ -79,8 +80,15 @@ jobs:
             print('Unexpected rates format; aborting update')
             sys.exit(0)
 
-          # Convert numbers to native Python floats
-          rates = {k: float(v) for k, v in rates.items()}
+          # Convert numbers to native Python floats, skip non-numeric
+          def safe_float(val):
+            try:
+              return float(val)
+            except Exception:
+              return None
+
+          rates = {k: safe_float(v) for k, v in rates.items()}
+          rates = {k: v for k, v in rates.items() if v is not None}
 
           # Preserve SDG if present in existing file (allow manual edits)
           if os.path.exists(out_path):
