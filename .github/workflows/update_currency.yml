@@ -52,28 +52,29 @@ jobs:
               return json.load(r)
 
           print('Fetching rates from', api)
+
           try:
             data = fetch_json(api)
           except Exception as e:
             print('Error fetching rates:', e)
             sys.exit(0)
 
-            # Normalise common response shapes: many providers use 'rates' or
-            # 'conversion_rates' (ExchangeRate-API uses conversion_rates).
-            rates = None
-            if isinstance(data, dict):
-              if 'rates' in data and isinstance(data['rates'], dict):
-                rates = data['rates']
-              elif 'conversion_rates' in data and isinstance(data['conversion_rates'], dict):
-                rates = data['conversion_rates']
-              else:
-                # Some providers return the rates directly at top-level
-                # as a dict of currency->value.
-                rates = data
+          # Normalise common response shapes: many providers use 'rates' or
+          # 'conversion_rates' (ExchangeRate-API uses conversion_rates).
+          rates = None
+          if isinstance(data, dict):
+            if 'rates' in data and isinstance(data['rates'], dict):
+              rates = data['rates']
+            elif 'conversion_rates' in data and isinstance(data['conversion_rates'], dict):
+              rates = data['conversion_rates']
+            else:
+              # Some providers return the rates directly at top-level
+              # as a dict of currency->value.
+              rates = data
 
-            if not isinstance(rates, dict):
-              print('Unexpected rates format; aborting update')
-              sys.exit(0)
+          if not isinstance(rates, dict):
+            print('Unexpected rates format; aborting update')
+            sys.exit(0)
 
           if not isinstance(rates, dict):
             print('Unexpected rates format; aborting update')
