@@ -1,5 +1,4 @@
 name: Update Currency Rates
-
 on:
   schedule:
     # Every 12 hours
