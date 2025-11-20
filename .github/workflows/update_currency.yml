@@ -1,4 +1,4 @@
-              name: Update Currency Rates
+ name: Update Currency Rates
 
 on:
   schedule:
@@ -97,8 +97,7 @@ jobs:
 
           new = {'rates': rates}
           with open(out_path, 'w', encoding='utf-8') as f:
-            json.dump(new, f, ensure_ascii=False, 
-          indent=2)
+            json.dump(new, f, ensure_ascii=False, indent=2)
           print('Wrote', out_path)
           # Commit only if changes
           import subprocess
@@ -113,15 +112,3 @@ jobs:
             subprocess.run(['git', 'commit', '-m', msg], check=True)
             subprocess.run(['git', 'push'], check=True)
           PY
-
-      - name: Update Mobile Ads Request Configuration
-        run: |
-          flutter pub get
-          flutter pub run build_runner build --delete-conflicting-outputs
-          flutter pub run flutter_native_splash:create
-          flutter build apk --release
-          adb install -r build/app/outputs/flutter-apk/app-release.apk
-          adb shell am start -n com.your.package.name/.MainActivity
-          adb shell input keyevent 82
-          adb shell input text "MobileAds.instance.updateRequestConfiguration(RequestConfiguration(testDeviceIds: ['BFA2262483AC3B724E46486B734776B0']));"
-          adb shell input keyevent 66
